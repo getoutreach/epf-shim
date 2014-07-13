@@ -1,0 +1,12 @@
+{
+  "name": "epf",
+  "version": "0.2.0+dev.853c202c",
+  "license": "MIT",
+  "main": "epf.js",
+  "keywords": [
+    "ember.js",
+    "orm",
+    "persistence",
+    "sync"
+  ]
+}
