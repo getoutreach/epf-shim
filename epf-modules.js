@@ -3,7 +3,7 @@
  * @copyright Copyright 2014 Gordon L. Hempton and contributors
  * @license   Licensed under MIT license
  *            See https://raw.github.com/getoutreach/epf/master/LICENSE
- * @version   0.2.1
+ * @version   0.2.1+dev.853c202c
  */
 define("epf",
   ["./ext/date","./namespace","./adapter","./id_manager","./initializers","./setup_container","./collections/model_array","./collections/model_set","./local/local_adapter","./merge_strategies/base","./merge_strategies/per_field","./model/relationships/belongs_to","./model/relationships/ext","./model/relationships/has_many","./model/attribute","./model/model","./model/diff","./model/errors","./model/proxies","./rest/serializers/errors","./rest/serializers/payload","./rest/embedded_helpers_mixin","./rest/embedded_manager","./rest/operation","./rest/operation_graph","./rest/payload","./rest/rest_adapter","./rest/rest_errors","./active_model/active_model_adapter","./active_model/serializers/model","./serializers/base","./serializers/belongs_to","./serializers/boolean","./serializers/date","./serializers/has_many","./serializers/id","./serializers/number","./serializers/model","./serializers/revision","./serializers/string","./session/child_session","./session/collection_manager","./session/inverse_manager","./session/merge","./session/session","./utils/isEqual","./debug/debug_adapter","exports"],
@@ -2741,7 +2741,7 @@ define("epf/namespace",
         @static
       */
       Ep = Ember.Namespace.create({
-        VERSION: '0.2.1'
+        VERSION: '0.2.1+dev.853c202c'
       });
 
       if (Ember.libraries) {
