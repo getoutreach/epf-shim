@@ -1,6 +1,6 @@
 {
   "name": "epf",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "license": "MIT",
   "main": "epf.js",
   "keywords": [

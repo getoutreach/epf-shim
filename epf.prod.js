@@ -3,7 +3,7 @@
  * @copyright Copyright 2014 Gordon L. Hempton and contributors
  * @license   Licensed under MIT license
  *            See https://raw.github.com/getoutreach/epf/master/LICENSE
- * @version   0.2.0
+ * @version   0.2.1
  */
 (function() {
 (function() {
@@ -4419,7 +4419,7 @@ define("epf/namespace",
         @static
       */
       Ep = Ember.Namespace.create({
-        VERSION: '0.2.0'
+        VERSION: '0.2.1'
       });
 
       if (Ember.libraries) {
