@@ -3,7 +3,7 @@
  * @copyright Copyright 2014 Gordon L. Hempton and contributors
  * @license   Licensed under MIT license
  *            See https://raw.github.com/getoutreach/epf/master/LICENSE
- * @version   0.3.0
+ * @version   0.3.1
  */
 (function() {
 (function() {
@@ -2117,6 +2117,15 @@ define("epf/collections/model_array",
 
       isEqual: function(arr) {
         return this.diff(arr).length === 0;
+      },
+
+      load: function() {
+        var array = this;
+        return Ember.RSVP.all(this.map(function(model) {
+          return model.load();
+        })).then(function() {
+          return array;
+        });
       }
 
     });
@@ -3500,7 +3509,9 @@ define("epf/model/model",
       refresh: sessionAlias('refresh'),
       deleteModel: sessionAlias('deleteModel'),
       remoteCall: sessionAlias('remoteCall'),
-      markClean: sessionAlias('markClean')
+      markClean: sessionAlias('markClean'),
+      invalidate: sessionAlias('invalidate'),
+      touch: sessionAlias('touch')
 
     });
 
@@ -3617,7 +3628,7 @@ define("epf/namespace",
         @static
       */
       Ep = Ember.Namespace.create({
-        VERSION: '0.3.0'
+        VERSION: '0.3.1'
       });
 
       if (Ember.libraries) {
@@ -3664,10 +3675,7 @@ define("epf/relationships/belongs_to",
 
       var res = Ember.ComputedProperty.prototype.get.apply(this, arguments);
 
-      if(res instanceof BelongsToProxy) {
-        res = res.content;
-      }
-      return res;
+      return unwrap(res);
     };
 
     /**
@@ -3685,6 +3693,7 @@ define("epf/relationships/belongs_to",
           cached, existing;
 
       if((cached = cacheGet(cache, keyName))
+        && (cached = unwrap(cached))
         && (existing = session.add(cached))
         && (existing !== cached)) {
         cacheSet(cache, keyName, existing);
@@ -3715,7 +3724,7 @@ define("epf/relationships/belongs_to",
               value = session.add(value);
             }
           } else if(value) {
-            value = BelongsToProxy.create({
+            value = BelongsToReference.create({
               _parent: this,
               content: value
             });
@@ -3733,7 +3742,7 @@ define("epf/relationships/belongs_to",
       the way belongsTo CP's are lazily materialized and how
       Ember's internal chain watchers behave.
     */
-    var BelongsToProxy = Ember.ObjectProxy.extend({
+    var BelongsToReference = Ember.Object.extend({
       session: Ember.computed.alias('_parent.session'),
       _parent: null,
       willWatchProperty: function(key) {
@@ -3748,6 +3757,13 @@ define("epf/relationships/belongs_to",
         return session.loadModel.apply(session, args);
       }
     });
+
+    function unwrap(ref) {
+      if(ref instanceof BelongsToReference) {
+        return ref.content;
+      }
+      return ref;
+    }
 
     /**
       These observers observe all `belongsTo` relationships on the model. See
@@ -6552,6 +6568,10 @@ define("epf/session/cache",
         }
       },
 
+      removeModel: function(model) {
+        delete this._data[get(model, 'clientId')];
+      },
+
       addPromise: function(model, promise) {
         this._data[get(model, 'clientId')] = promise;
       },
@@ -7536,6 +7556,17 @@ define("epf/session/session",
       */
       updateCache: function(model) {
         this.cache.addModel(model);
+      },
+
+      /**
+        Invalidate the cache for a particular model. This has the
+        effect of making the next `load` call hit the server.
+
+        @method invalidate
+        @param {Ep.Model} model
+      */
+      invalidate: function(model) {
+        this.cache.removeModel(model);
       },
 
       /**
