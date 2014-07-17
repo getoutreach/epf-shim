@@ -3,7 +3,7 @@
  * @copyright Copyright 2014 Gordon L. Hempton and contributors
  * @license   Licensed under MIT license
  *            See https://raw.github.com/getoutreach/epf/master/LICENSE
- * @version   0.2.1+dev.853c202c
+ * @version   0.3.0
  */
 (function() {
 (function() {
@@ -1696,7 +1696,7 @@ var define, requireModule, require, requirejs;
 })();
 
 define("epf",
-  ["./ext/date","./namespace","./adapter","./id_manager","./initializers","./setup_container","./collections/model_array","./collections/model_set","./local/local_adapter","./merge_strategies/base","./merge_strategies/per_field","./model/relationships/belongs_to","./model/relationships/ext","./model/relationships/has_many","./model/attribute","./model/model","./model/diff","./model/errors","./model/proxies","./rest/serializers/errors","./rest/serializers/payload","./rest/embedded_helpers_mixin","./rest/embedded_manager","./rest/operation","./rest/operation_graph","./rest/payload","./rest/rest_adapter","./rest/rest_errors","./active_model/active_model_adapter","./active_model/serializers/model","./serializers/base","./serializers/belongs_to","./serializers/boolean","./serializers/date","./serializers/has_many","./serializers/id","./serializers/number","./serializers/model","./serializers/revision","./serializers/string","./session/child_session","./session/collection_manager","./session/inverse_manager","./session/merge","./session/session","./utils/isEqual","./debug/debug_adapter","exports"],
+  ["./ext/date","./namespace","./adapter","./id_manager","./initializers","./setup_container","./collections/model_array","./collections/model_set","./local/local_adapter","./merge_strategies/base","./merge_strategies/per_field","./model/attribute","./model/model","./model/diff","./model/errors","./model/promise","./relationships/belongs_to","./relationships/ext","./relationships/has_many","./rest/serializers/errors","./rest/serializers/payload","./rest/embedded_helpers_mixin","./rest/embedded_manager","./rest/operation","./rest/operation_graph","./rest/payload","./rest/rest_adapter","./rest/rest_errors","./active_model/active_model_adapter","./active_model/serializers/model","./serializers/base","./serializers/belongs_to","./serializers/boolean","./serializers/date","./serializers/has_many","./serializers/id","./serializers/number","./serializers/model","./serializers/revision","./serializers/string","./session/child_session","./session/collection_manager","./session/inverse_manager","./session/merge","./session/session","./utils/isEqual","./debug/debug_adapter","exports"],
   function(__dependency1__, __dependency2__, __dependency3__, __dependency4__, __dependency5__, __dependency6__, __dependency7__, __dependency8__, __dependency9__, __dependency10__, __dependency11__, __dependency12__, __dependency13__, __dependency14__, __dependency15__, __dependency16__, __dependency17__, __dependency18__, __dependency19__, __dependency20__, __dependency21__, __dependency22__, __dependency23__, __dependency24__, __dependency25__, __dependency26__, __dependency27__, __dependency28__, __dependency29__, __dependency30__, __dependency31__, __dependency32__, __dependency33__, __dependency34__, __dependency35__, __dependency36__, __dependency37__, __dependency38__, __dependency39__, __dependency40__, __dependency41__, __dependency42__, __dependency43__, __dependency44__, __dependency45__, __dependency46__, __dependency47__, __exports__) {
     "use strict";
 
@@ -1714,18 +1714,14 @@ define("epf",
     var MergeStrategy = __dependency10__["default"];
     var PerField = __dependency11__["default"];
 
-    var belongsTo = __dependency12__["default"];
-    var hasMany = __dependency14__["default"];
-    var HasManyArray = __dependency14__.HasManyArray;
-    var attr = __dependency15__["default"];
-    var Model = __dependency16__["default"];
-    var ModelMixin = __dependency16__.ModelMixin;
-    var Errors = __dependency18__["default"];
-    var ModelProxy = __dependency19__.ModelProxy;
-    var ModelPromise = __dependency19__.ModelPromise;
-    var LazyModel = __dependency19__.LazyModel;
-    var unwrap = __dependency19__.unwrap;
-    var resolveModel = __dependency19__.resolveModel;
+    var attr = __dependency12__["default"];
+    var Model = __dependency13__["default"];
+    var Errors = __dependency15__["default"];
+    var ModelPromise = __dependency16__["default"];
+
+    var belongsTo = __dependency17__["default"];
+    var hasMany = __dependency19__["default"];
+    var HasManyArray = __dependency19__.HasManyArray;
 
     var RestErrorsSerializer = __dependency20__["default"];
     var PayloadSerializer = __dependency21__["default"];
@@ -1776,13 +1772,9 @@ define("epf",
     Ep.hasMany = hasMany;
     Ep.attr = attr;
     Ep.Model = Model;
-    Ep.ModelMixin = ModelMixin;
     Ep.Errors = Errors;
-    Ep.ModelProxy = ModelProxy;
+
     Ep.ModelPromise = ModelPromise;
-    Ep.LazyModel = LazyModel;
-    Ep.unwrap = unwrap;
-    Ep.resolveModel = resolveModel;
 
     Ep.RestErrorsSerializer = RestErrorsSerializer;
     Ep.PayloadSerializer = PayloadSerializer;
@@ -2027,11 +2019,11 @@ define("epf/collections/model_array",
   ["./model_set","exports"],
   function(__dependency1__, __exports__) {
     "use strict";
-    var get = Ember.get, set = Ember.set;
+    var get = Ember.get, set = Ember.set, Copyable = Ember.Copyable;
 
     var ModelSet = __dependency1__["default"];
 
-    __exports__["default"] = Ember.ArrayProxy.extend({
+    __exports__["default"] = Ember.ArrayProxy.extend(Copyable, {
 
       session: null,
       meta: null,
@@ -2077,6 +2069,10 @@ define("epf/collections/model_array",
           if(obj.isEqual(m)) return true;
         }
         return false;
+      },
+
+      copy: function() {
+        return this.content.copy();
       },
 
       /**
@@ -2599,6 +2595,24 @@ define("epf/collections/model_set",
         var idx = this[clientId];
         if(idx === undefined) return;
         return this[idx];
+      },
+
+      /**
+        Adds the model to the set or overwrites the existing
+        model.
+      */
+      addData: function(model) {
+        var existing = this.getModel(model);
+        var dest;
+        if(existing) {
+          dest = existing.copy();
+          model.copyTo(dest);
+        } else {
+          // copy since the dest could be the model in the session
+          dest = model.copy();
+        }
+        this.add(dest);
+        return dest;
       }
 
     });
@@ -2744,9 +2758,9 @@ define("epf/debug/debug_info",
   ["../model/model"],
   function(__dependency1__) {
     "use strict";
-    var ModelMixin = __dependency1__.ModelMixin;
+    var Model = __dependency1__["default"];
 
-    ModelMixin.reopen({
+    Model.reopen({
 
       /**
         Provides info about the model for debugging purposes
@@ -2796,7 +2810,7 @@ define("epf/debug/debug_info",
           },
           {
             name: 'Flags',
-            properties: ['isLoaded', 'isDirty', 'isDeleted', 'hasErrors', 'isProxy']
+            properties: ['isDirty', 'isDeleted', 'hasErrors']
           }
         ];
 
@@ -3017,7 +3031,7 @@ define("epf/merge_strategies/per_field",
   ["./base","../collections/model_set","../utils/isEqual","exports"],
   function(__dependency1__, __dependency2__, __dependency3__, __exports__) {
     "use strict";
-    var get = Ember.get, set = Ember.set;
+    var get = Ember.get, set = Ember.set, copy = Ember.copy;
 
     var MergeStrategy = __dependency1__["default"];
     var ModelSet = __dependency2__["default"];
@@ -3041,53 +3055,50 @@ define("epf/merge_strategies/per_field",
 
       mergeAttributes: function(ours, ancestor, theirs) {
         ours.eachAttribute(function(name, meta) {
-          var oursValue = get(ours, name),
-              ancestorValue = get(ancestor, name),
-              theirsValue = get(theirs, name);
-          set(ours, name, this.mergeAttribute(name, oursValue, ancestorValue, theirsValue));
+          this.mergeProperty(ours, ancestor, theirs, name);
         }, this);
-      },
-
-      mergeAttribute: function(name, ours, ancestor, theirs) {
-        if(isEqual(ours, ancestor)) {
-          return theirs;
-        }
-        return ours;
       },
 
       mergeRelationships: function(ours, ancestor, theirs) {
         var session = get(this, 'session');
         ours.eachRelationship(function(name, relationship) {
           if(relationship.kind === 'belongsTo') {
-            var oursValue = get(ours, name);
-            var theirsValue = get(theirs, name);
-            var originalValue = get(ancestor, name);
-            // keep "ours", only merge if ours hasn't changed
-            if(isEqual(oursValue, originalValue)) {
-              set(ours, name, theirsValue);
-            }
+            this.mergeBelongsTo(ours, ancestor, theirs, name);
           } else if(relationship.kind === 'hasMany') {
-            var theirChildren = get(theirs, name);
-            var ourChildren = get(ours, name);
-            var originalChildren = get(ancestor, name);
-            if(isEqual(ourChildren, originalChildren)) {
-              // if we haven't modified the collection locally then
-              // we replace
-              var existing = ModelSet.create();
-              existing.addObjects(ourChildren);
-
-              theirChildren.forEach(function(model) {
-                if(existing.contains(model)) {
-                  existing.remove(model);
-                } else {
-                  ourChildren.pushObject(model);
-                }
-              }, this);
-
-              ourChildren.removeObjects(existing);
-            }
+            this.mergeHasMany(ours, ancestor, theirs, name);
           }
         }, this);
+      },
+
+      mergeBelongsTo: function(ours, ancestor, theirs, name) {
+        this.mergeProperty(ours, ancestor, theirs, name);
+      },
+
+      mergeHasMany: function(ours, ancestor, theirs, name) {
+        this.mergeProperty(ours, ancestor, theirs, name);
+      },
+
+      mergeProperty: function(ours, ancestor, theirs, name) {
+        var oursValue = get(ours, name),
+            ancestorValue = get(ancestor, name),
+            theirsValue = get(theirs, name);
+
+        if(!ours.isPropertyLoaded(name)) {
+          if(theirs.isPropertyLoaded(name)) {
+            set(ours, name, copy(theirsValue));
+          }
+          return;
+        }
+        if(!theirs.isPropertyLoaded(name) || isEqual(oursValue, theirsValue)) {
+          return;
+        }
+        // if the ancestor does not have the property loaded we are
+        // performing a two-way merge and we just pick theirs
+        if(!ancestor.isPropertyLoaded(name) || isEqual(oursValue, ancestorValue)) {
+          set(ours, name, copy(theirsValue));
+        } else {
+          // NO-OP
+        }
       }
 
     });
@@ -3122,6 +3133,14 @@ define("epf/model/attribute",
         get(this.constructor, 'attributes').forEach(function(name, meta) {
           callback.call(binding, name, meta);
         }, binding);
+      },
+
+      eachLoadedAttribute: function(callback, binding) {
+        this.eachAttribute(function(name, meta) {
+          if(this.isPropertyLoaded(name)) {
+            callback.apply(binding, arguments);
+          }
+        }, this);
       }
     });
 
@@ -3134,14 +3153,17 @@ define("epf/model/attribute",
         options: options
       };
 
-      return Ember.computed(function(key, value, oldValue) {
+      return Ember.computed(function(key, value) {
+        var session = get(this, 'session');
+
         if (arguments.length > 1) {
           Ember.assert("You may not set `id` as an attribute on your model. Please remove any lines that look like: `id: Ep.attr('<type>')` from " + this.constructor.toString(), key !== 'id');
+        } else {
+          return;
         }
 
-        var session = get(this, 'session');
-        if(session && value !== oldValue) {
-          session.modelWillBecomeDirty(this, key, value, oldValue);
+        if(session) {
+          session.modelWillBecomeDirty(this);
         }
 
         return value;
@@ -3163,7 +3185,7 @@ define("epf/model/diff",
       diff: function(model) {
         var diffs = [];
 
-        this.eachAttribute(function(name, meta) {
+        this.eachLoadedAttribute(function(name, meta) {
           var left = get(this, name);
           var right = get(model, name);
 
@@ -3195,7 +3217,7 @@ define("epf/model/diff",
           }
         }, this);
 
-        this.eachRelationship(function(name, relationship) {
+        this.eachLoadedRelationship(function(name, relationship) {
           var left = get(this, name);
           var right = get(model, name);
           if(relationship.kind === 'belongsTo') {
@@ -3276,13 +3298,14 @@ define("epf/model/model",
   ["../collections/model_set","exports"],
   function(__dependency1__, __exports__) {
     "use strict";
-    var get = Ember.get, set = Ember.set, Copyable = Ember.Copyable, computed = Ember.computed;
+    var get = Ember.get, set = Ember.set, Copyable = Ember.Copyable, computed = Ember.computed,
+        cacheFor = Ember.cacheFor,
+        cacheGet = cacheFor.get,
+        metaFor = Ember.meta;
 
     var ModelSet = __dependency1__["default"];
 
-    var LazyModel;
-
-    var ModelMixin = Ember.Mixin.create({
+    var Model = Ember.Object.extend(Copyable, {
 
       id: null,
       clientId: null,
@@ -3291,6 +3314,9 @@ define("epf/model/model",
       session: null,
       errors: null,
       isModel: true,
+      isDeleted: false,
+
+      _loadPromise: null,
 
       /**
         Two models are "equal" when they correspond to the same
@@ -3335,12 +3361,10 @@ define("epf/model/model",
       },
 
       lazyCopy: function() {
-        // ES6TODO: circular
-        if(!LazyModel) LazyModel = requireModule('epf/model/proxies')['LazyModel'];
-        return LazyModel.create({
+        var type = get(this, 'type');
+        return type.create({
           id: get(this, 'id'),
           clientId: get(this, 'clientId'),
-          type: get(this, 'type'),
           isDeleted: get(this, 'isDeleted'),
           errors: get(this, 'errors')
         });
@@ -3358,16 +3382,7 @@ define("epf/model/model",
 
       isManaged: computed(function() {
         return !!get(this, 'session');
-      }).volatile()
-
-    });
-
-    var Model = Ember.Object.extend(Copyable, ModelMixin, {
-
-      isPromise: false,
-      isProxy: false,
-      isDeleted: false,
-      isLoaded: true,
+      }).volatile(),
 
       isNew: computed(function() {
         return !get(this, 'id');
@@ -3390,21 +3405,25 @@ define("epf/model/model",
       // TODO: we should not lazily copy detached children
       copy: function() {
         var dest = this.constructor.create();
+        this.copyTo(dest);
+        return dest;
+      },
+
+      copyTo: function(dest) {
         dest.beginPropertyChanges();
         this.copyAttributes(dest);
         this.copyMeta(dest);
-        this.eachRelationship(function(name, relationship) {
+        this.eachLoadedRelationship(function(name, relationship) {
           if(relationship.kind === 'belongsTo') {
             var child = get(this, name);
-            if(child) {
-              set(dest, name, child.lazyCopy());
-            }
+            set(dest, name, child && child.lazyCopy());
           } else if(relationship.kind === 'hasMany') {
             var children = get(this, name);
-            var destChildren = get(dest, name);
+            var destChildren = [];
             children.forEach(function(child) {
               destChildren.pushObject(child.lazyCopy());
             });
+            set(dest, name, destChildren);
           }
         }, this);
         dest.endPropertyChanges();
@@ -3414,7 +3433,7 @@ define("epf/model/model",
       copyAttributes: function(dest) {
         dest.beginPropertyChanges();
         
-        this.eachAttribute(function(name, meta) {
+        this.eachLoadedAttribute(function(name, meta) {
           var left = get(this, name);
           var right = get(dest, name);
           var copy;
@@ -3436,7 +3455,52 @@ define("epf/model/model",
         set(dest, 'clientRev', get(this, 'clientRev'));
         set(dest, 'errors', Ember.copy(get(this, 'errors')));
         set(dest, 'isDeleted', get(this, 'isDeleted'));
-      }
+      },
+
+      willWatchProperty: function(key) {
+        if(get(this, 'isManaged') && this.shouldTriggerLoad(key)) {
+          Ember.run.scheduleOnce('actions', this, this.load);
+        }
+      },
+
+      shouldTriggerLoad: function(key) {
+        return this.isAttributeOrRelationship(key) && !this.isPropertyLoaded(key);
+      },
+
+      isAttributeOrRelationship: function(key) {
+        var proto = this.constructor.proto(),
+            descs = Ember.meta(proto).descs,
+            desc = descs[key],
+            meta = desc && desc._meta;
+
+        return meta && (meta.isAttribute || meta.isRelationship);
+      },
+
+      isPropertyLoaded: function(key) {
+        if(get(this, 'isNew')) {
+          return true;
+        }
+
+        var meta = metaFor(this),
+            cache = meta.cache,
+            cached = cacheGet(cache, key);
+
+        return typeof cached !== 'undefined';
+      },
+
+      anyPropertiesLoaded: function() { 
+        var result = false;
+        get(this, 'type.fields').forEach(function(name, meta) {
+          result = result || this.isPropertyLoaded(name);
+        }, this);
+        return result;
+      },
+
+      load: sessionAlias('loadModel'),
+      refresh: sessionAlias('refresh'),
+      deleteModel: sessionAlias('deleteModel'),
+      remoteCall: sessionAlias('remoteCall'),
+      markClean: sessionAlias('markClean')
 
     });
 
@@ -3468,46 +3532,56 @@ define("epf/model/model",
 
     });
 
-    __exports__.ModelMixin = ModelMixin;
+    function sessionAlias(name) {
+      return function () {
+        var session = get(this, 'session');
+        Ember.assert("Cannot call " + name + " on a detached model", session);
+        var args = [].splice.call(arguments,0);
+        args.unshift(this);
+        return session[name].apply(session, args);
+      };
+    }
+
     __exports__["default"] = Model;
   });
-define("epf/model/proxies",
-  ["./model","exports"],
-  function(__dependency1__, __exports__) {
+define("epf/model/promise",
+  ["exports"],
+  function(__exports__) {
     "use strict";
-    var get = Ember.get, set = Ember.set, Copyable = Ember.Copyable;
+    /**
+      A `ModelPromise` is an object that acts like both an `Ember.Object`
+      and a promise. When the promise is resolved the the resulting value
+      will be set to the `ModelPromise`'s `content` property. This makes
+      it easy to create data bindings with the `ModelPromise` that will
+      be updated when the promise resolves.
 
-    var ModelMixin = __dependency1__.ModelMixin;
+      For more information see the [Ember.PromiseProxyMixin
+      documentation](/api/classes/Ember.PromiseProxyMixin.html).
 
-    function triggerLoad(async) {
-      return function() {
-        if(!get(this, 'content') && !get(this, 'isLoading')) {
-          if(async) {
-            Ember.run.scheduleOnce('actions', this, this.load);
-          } else {
-            this.load();
-          }
-        }
-        return this._super.apply(this, arguments);
-      }
-    }
+      Example
 
-    function passThrough(key, defaultValue) {
-      return Ember.computed(function(key, value) {
-        var content = get(this, 'content');
-        if(arguments.length === 1) {
-          if(content) {
-            return get(content, key);
-          } else {
-            return defaultValue;
-          }
-        }
-        if(content) {
-          return set(content, key, value);
-        }
-        return value;
-      }).property('content.' + key);
-    }
+      ```javascript
+      var promiseObject = DS.ModelPromise.create({
+        promise: $.getJSON('/some/remote/data.json')
+      });
+
+      promiseObject.get('name'); // null
+
+      promiseObject.then(function() {
+        promiseObject.get('name'); // 'Tomster'
+      });
+      ```
+
+      @class ModelPromise
+      @namespace DS
+      @extends Ember.ObjectProxy
+      @uses Ember.PromiseProxyMixin
+    */
+    var ModelPromise = Ember.ObjectProxy.extend(Ember.PromiseProxyMixin, {
+
+      load: passThroughMethod('load')
+
+    });
 
     function passThroughMethod(name, defaultReturn) {
       return function() {
@@ -3517,167 +3591,45 @@ define("epf/model/proxies",
       }
     }
 
-    var ModelProxy = Ember.ObjectProxy.extend(Copyable, ModelMixin, {
-
-      id: passThrough('id'),
-      clientId: passThrough('clientId'),
-      rev: passThrough('rev'),
-      clientRev: passThrough('clientRev'),
-      type: passThrough('type'),
-
-      isDirty: false,
-      isPromise: false,
-      isLoaded: passThrough('isLoaded', false),
-      isLoading: false,
-      isDeleted: passThrough('isDeleted', false),
-      isNew: passThrough('isNew', false),
-      isProxy: true,
-      errors: passThrough('errors'),
-
-      copy: function() {
-        var content = get(this, 'content');
-        if(content) {
-          return content.copy();
-        }
-        return this.lazyCopy();
-      },
-
-      diff: passThroughMethod('diff', []),
-      suspendRelationshipObservers: passThroughMethod('suspendRelationshipObservers'),
-      eachAttribute: passThroughMethod('eachAttribute'),
-      eachRelationship: passThroughMethod('eachRelationship'),
-      _registerRelationships: passThroughMethod('_registerRelationships')
-
-    });
+    __exports__["default"] = ModelPromise;
+  });
+define("epf/namespace",
+  ["exports"],
+  function(__exports__) {
+    "use strict";
+    /**
+      @module epf
+    */
 
     /**
-      Represents the promise of a model
+      All Ember Data methods and functions are defined inside of this namespace.
+
+      @class Ep
+      @static
     */
-    var ModelPromise = ModelProxy.extend(Ember.DeferredMixin, {
 
-      isPromise: true,
-
-      resolve: function(model) {
-        set(this, 'content', model);
-        return this._super.apply(this, arguments);
-      },
-
-      // volatile as to not trigger a load
-      hasIdentifiers: Ember.computed(function() {
-        return get(this, 'type') && (get(this, 'id') || get(this, 'clientId'));
-      }).volatile(),
-
-      toStringExtension: function() {
-        var content = get(this, 'content');
-        if(content) {
-          return content.toString();
-        } else if(get(this, 'hasIdentifiers')) {
-          var type = get(this, 'type');
-          return "(unloaded " + type.toString() + "):" + this._super();
-        } else {
-          return "(no identifiers)";
-        }
-      }
-
-    });
-
-
-    var LazyModel = ModelPromise.extend({
-
-      willWatchProperty: triggerLoad(true),
-      unknownProperty: triggerLoad(),
-      setUnknownProperty: triggerLoad(),
-      then: triggerLoad(true),
-      _parent: null,
-
-      resolve: function() {
-        set(this, 'isLoading', false);
-        return this._super.apply(this, arguments);
-      },
-
-      load: function() {
-        if(get(this, 'isLoading')) return this;
-
-        var session = get(this, 'session'),
-            type = get(this, 'type'),
-            id = get(this, 'id');
-        set(this, 'isLoading', true);
-
-        if(!session && get(this, '_parent')) {
-          session = get(this, '_parent.session');
-        }
-
-        Ember.assert("Must be attached to a session.", session);
-        Ember.assert("Must have an id to load.", id);
-
-        var promise = session.load(type, id);
-
-        if(get(promise, 'isLoaded')) {
-          this.resolve(unwrap(promise));
-        } else {
-          var proxy = this;
-          promise.then(function(model) {
-            proxy.resolve(model);
-            return model;
-          }, function(err) {
-            proxy.reject(err);
-            return err;
-          });
-        }
-        return this;
-      },
-
-    });
-
-    function unwrap(modelOrPromise) {
-      if(get(modelOrPromise, 'isProxy')) {
-        return get(modelOrPromise, 'content');
-      }
-
-      return modelOrPromise;
-    }
-
-    function resolveModel(modelOrPromise, type, id, session) {
-      if(modelOrPromise instanceof ModelPromise) {
-        return modelOrPromise;
-      }
-
-      id = get(modelOrPromise, 'id') || id;
-      var clientId = get(modelOrPromise, 'clientId');
-      type = get(modelOrPromise, 'type') || type;
-      session = get(modelOrPromise, 'session') || session;
-
-      var promise = ModelPromise.create({
-        id: id,
-        clientId: clientId,
-        type: type,
-        session: session
+    var Ep;
+    if ('undefined' === typeof Ep) {
+      /**
+        @property VERSION
+        @type String
+        @default '<%= versionStamp %>'
+        @static
+      */
+      Ep = Ember.Namespace.create({
+        VERSION: '0.3.0'
       });
 
-      if(typeof modelOrPromise.then !== 'function') {
-        promise.resolve(modelOrPromise);
-      } else {
-        modelOrPromise.then(function(model) {
-          promise.resolve(model);
-          return model;
-        }, function(err) {
-          promise.reject(err);
-          throw err;
-        });
+      if (Ember.libraries) {
+        Ember.libraries.registerCoreLibrary('EPF', Ep.VERSION);
       }
+    }
 
-      return promise;
-    };
-
-    __exports__.ModelProxy = ModelProxy;
-    __exports__.ModelPromise = ModelPromise;
-    __exports__.LazyModel = LazyModel;
-    __exports__.unwrap = unwrap;
-    __exports__.resolveModel = resolveModel;
+    __exports__["default"] = Ep;
   });
-define("epf/model/relationships/belongs_to",
-  ["../model","../proxies","exports"],
-  function(__dependency1__, __dependency2__, __exports__) {
+define("epf/relationships/belongs_to",
+  ["../model/model","exports"],
+  function(__dependency1__, __exports__) {
     "use strict";
     var get = Ember.get, set = Ember.set,
         cacheFor = Ember.cacheFor,
@@ -3686,7 +3638,6 @@ define("epf/model/relationships/belongs_to",
         metaFor = Ember.meta;
 
     var Model = __dependency1__["default"];
-    var LazyModel = __dependency2__.LazyModel;
 
     /**
       @private
@@ -3711,7 +3662,12 @@ define("epf/model/relationships/belongs_to",
         this.materialize(obj, keyName);
       }
 
-      return Ember.ComputedProperty.prototype.get.apply(this, arguments);
+      var res = Ember.ComputedProperty.prototype.get.apply(this, arguments);
+
+      if(res instanceof BelongsToProxy) {
+        res = res.content;
+      }
+      return res;
     };
 
     /**
@@ -3748,33 +3704,50 @@ define("epf/model/relationships/belongs_to",
         meta.type = typeKey;
       }
 
-      return new BelongsToDescriptor(function(key, value, oldValue) {
+      return new BelongsToDescriptor(function(key, value) {
         if(arguments.length === 1) {
-          return null;
+          return undefined;
         } else {
           var session = get(this, 'session');
           if(session) {
-            session.modelWillBecomeDirty(this, key, value, oldValue);
+            session.modelWillBecomeDirty(this);
             if(value) {
               value = session.add(value);
             }
-          } else if(value && get(value, 'isProxy')) {
-            if(get(value, 'isLoaded')) {
-              value = get(value, 'content');
-            } else {
-              value = LazyModel.create({
-                id: get(value, 'id'),
-                clientId: get(value, 'clientId'),
-                type: get(value, 'type'),
-                _parent: this,
-                session: get(value, 'session')
-              });
-            }
+          } else if(value) {
+            value = BelongsToProxy.create({
+              _parent: this,
+              content: value
+            });
           }
           return value;
         }
       }).meta(meta);
     };
+
+    /**
+      @private
+
+      We need a custom wrapper around related models with a session
+      that points to the parent model's session. This is due to
+      the way belongsTo CP's are lazily materialized and how
+      Ember's internal chain watchers behave.
+    */
+    var BelongsToProxy = Ember.ObjectProxy.extend({
+      session: Ember.computed.alias('_parent.session'),
+      _parent: null,
+      willWatchProperty: function(key) {
+        if(get(this, 'session') && this.content.shouldTriggerLoad(key)) {
+          Ember.run.scheduleOnce('actions', this, this.load);
+        }
+      },
+      load: function() {
+        var session = get(this, 'session');
+        var args = [].splice.call(arguments,0);
+        args.unshift(this.content);
+        return session.loadModel.apply(session, args);
+      }
+    });
 
     /**
       These observers observe all `belongsTo` relationships on the model. See
@@ -3785,7 +3758,7 @@ define("epf/model/relationships/belongs_to",
       init: function() {
         this._super();
         // manually trigger change events to updated inverses
-        this.eachRelationship(function(name, relationship) {
+        this.eachLoadedRelationship(function(name, relationship) {
           if(relationship.kind === 'belongsTo') {
             this.belongsToDidChange(this, name);
           }
@@ -3813,14 +3786,13 @@ define("epf/model/relationships/belongs_to",
       })
     });
   });
-define("epf/model/relationships/ext",
-  ["../model"],
+define("epf/relationships/ext",
+  ["../model/model"],
   function(__dependency1__) {
     "use strict";
     var get = Ember.get, set = Ember.set;
 
     var Model = __dependency1__["default"];
-    var ModelMixin = __dependency1__.ModelMixin;
 
     /**
       @private
@@ -4247,10 +4219,14 @@ define("epf/model/relationships/ext",
       eachRelationship: function(callback, binding) {
         this.constructor.eachRelationship(callback, binding);
       },
-    });
 
-
-    ModelMixin.reopen({
+      eachLoadedRelationship: function(callback, binding) {
+        this.eachRelationship(function(name, relationship) {
+          if(this.isPropertyLoaded(name)) {
+            callback.apply(binding, arguments);
+          }
+        }, this);
+      },
 
       /**
         Traverses the object graph rooted at this model, invoking the callback.
@@ -4260,9 +4236,8 @@ define("epf/model/relationships/ext",
         if(cache.contains(this)) return;
         cache.add(this);
         callback.call(binding || this, this);
-        if(!get(this, 'isLoaded')) return;
 
-        this.eachRelationship(function(name, relationship) {
+        this.eachLoadedRelationship(function(name, relationship) {
           if(relationship.kind === 'belongsTo') {
             var child = get(this, name);
             if(!child) return;
@@ -4283,7 +4258,7 @@ define("epf/model/relationships/ext",
         @param {any} binding the value to which the callback's `this` should be bound
       */
       eachChild: function(callback, binding) {
-        this.eachRelationship(function(name, relationship) {
+        this.eachLoadedRelationship(function(name, relationship) {
           if(relationship.kind === 'belongsTo') {
             var child = get(this, name);
             if(child) {
@@ -4309,8 +4284,8 @@ define("epf/model/relationships/ext",
       }
     }
   });
-define("epf/model/relationships/has_many",
-  ["../model","../../collections/model_array","exports"],
+define("epf/relationships/has_many",
+  ["../model/model","../collections/model_array","exports"],
   function(__dependency1__, __dependency2__, __exports__) {
     "use strict";
     var get = Ember.get, set = Ember.set, forEach = Ember.ArrayPolyfills.forEach;
@@ -4331,16 +4306,15 @@ define("epf/model/relationships/has_many",
         meta.type = typeKey;
       }
 
-      return Ember.computed(function(key, value, cached) {
+      return Ember.computed(function(key, value) {
         var content;
         if(arguments.length === 1) {
+          if(!get(this, 'isNew')) {
+            return;
+          }
           content = [];
         } else {
           content = value;
-        }
-        if(cached) {
-          set(cached, 'content', content);
-          return cached;
         }
         return HasManyArray.create({
           owner: this,
@@ -4407,40 +4381,6 @@ define("epf/model/relationships/has_many",
 
     __exports__.HasManyArray = HasManyArray;
   });
-define("epf/namespace",
-  ["exports"],
-  function(__exports__) {
-    "use strict";
-    /**
-      @module epf
-    */
-
-    /**
-      All Ember Data methods and functions are defined inside of this namespace.
-
-      @class Ep
-      @static
-    */
-
-    var Ep;
-    if ('undefined' === typeof Ep) {
-      /**
-        @property VERSION
-        @type String
-        @default '<%= versionStamp %>'
-        @static
-      */
-      Ep = Ember.Namespace.create({
-        VERSION: '0.2.1+dev.853c202c'
-      });
-
-      if (Ember.libraries) {
-        Ember.libraries.registerCoreLibrary('EPF', Ep.VERSION);
-      }
-    }
-
-    __exports__["default"] = Ep;
-  });
 define("epf/rest/embedded_helpers_mixin",
   ["../serializers/serializer_for_mixin","exports"],
   function(__dependency1__, __exports__) {
@@ -4460,21 +4400,27 @@ define("epf/rest/embedded_helpers_mixin",
         return serializer.embeddedType(type, name);
       },
 
-      eachEmbeddedRecord: function(record, callback, binding) {
-        this.eachEmbeddedBelongsToRecord(record, callback, binding);
-        this.eachEmbeddedHasManyRecord(record, callback, binding);
+      eachEmbeddedRecord: function(model, callback, binding) {
+        this.eachEmbeddedBelongsToRecord(model, callback, binding);
+        this.eachEmbeddedHasManyRecord(model, callback, binding);
       },
 
-      eachEmbeddedBelongsToRecord: function(record, callback, binding) {
-        this.eachEmbeddedBelongsTo(get(record, 'type'), function(name, relationship, embeddedType) {
-          var embeddedRecord = get(record, name);
+      eachEmbeddedBelongsToRecord: function(model, callback, binding) {
+        this.eachEmbeddedBelongsTo(get(model, 'type'), function(name, relationship, embeddedType) {
+          if(!model.isPropertyLoaded(name)) {
+            return;
+          }
+          var embeddedRecord = get(model, name);
           if (embeddedRecord) { callback.call(binding, embeddedRecord, embeddedType); }
         });
       },
 
-      eachEmbeddedHasManyRecord: function(record, callback, binding) {
-        this.eachEmbeddedHasMany(get(record, 'type'), function(name, relationship, embeddedType) {
-          var array = get(record, name);
+      eachEmbeddedHasManyRecord: function(model, callback, binding) {
+        this.eachEmbeddedHasMany(get(model, 'type'), function(name, relationship, embeddedType) {
+          if(!model.isPropertyLoaded(name)) {
+            return;
+          }
+          var array = get(model, name);
           for (var i=0, l=get(array, 'length'); i<l; i++) {
             callback.call(binding, array.objectAt(i), embeddedType);
           }
@@ -4832,12 +4778,7 @@ define("epf/rest/operation_graph",
 
         var promises = [];
         get(this, 'ops').forEach(function(model, op) {
-          if(!get(op, 'model.isLoaded')) {
-            // skip but still resolve for children
-            op.resolve();
-          } else {
-            promises.push(createNestedPromise(op));
-          }
+          promises.push(createNestedPromise(op));
         }); 
 
         return Ember.RSVP.all(promises).then(function() {
@@ -4856,9 +4797,10 @@ define("epf/rest/operation_graph",
         models.forEach(function(model) {
           // skip any promises that aren't loaded
           // TODO: think through edge cases in depth
-          if(!get(model, 'isLoaded')) {
-            return;
-          }
+          // XXX:
+          // if(!get(model, 'isLoaded')) {
+          //   return;
+          // }
 
           var shadow = shadows.getModel(model);
 
@@ -4963,8 +4905,8 @@ define("epf/rest/payload",
     __exports__["default"] = Payload;
   });
 define("epf/rest/rest_adapter",
-  ["../adapter","./embedded_helpers_mixin","./embedded_manager","../collections/model_set","./operation_graph","./rest_errors","./serializers/payload","./serializers/errors","../utils/materialize_relationships","../model/proxies","exports"],
-  function(__dependency1__, __dependency2__, __dependency3__, __dependency4__, __dependency5__, __dependency6__, __dependency7__, __dependency8__, __dependency9__, __dependency10__, __exports__) {
+  ["../adapter","./embedded_helpers_mixin","./embedded_manager","../collections/model_set","./operation_graph","./rest_errors","./serializers/payload","./serializers/errors","../utils/materialize_relationships","exports"],
+  function(__dependency1__, __dependency2__, __dependency3__, __dependency4__, __dependency5__, __dependency6__, __dependency7__, __dependency8__, __dependency9__, __exports__) {
     "use strict";
     /*global jQuery*/
     var get = Ember.get, set  = Ember.set, forEach = Ember.ArrayPolyfills.forEach, pluralize = Ember.String.pluralize;
@@ -4979,9 +4921,6 @@ define("epf/rest/rest_adapter",
     var RestErrorsSerializer = __dependency8__["default"];
 
     var materializeRelationships = __dependency9__["default"];
-
-    var ModelProxy = __dependency10__.ModelProxy;
-    var LoadError = ModelProxy.extend({});
 
     /**
       The REST adapter allows your store to communicate with an HTTP server by
@@ -5097,33 +5036,11 @@ define("epf/rest/rest_adapter",
         return container;
       },
 
-      // TODO: keep track of loads and prevent concurrent (return same promise)
-      load: function(typeKey, id, opts, session) {
-        var context = {typeKey: typeKey, id: id};
-        var promise = this._load(typeKey, id, opts).then(null, function(payload) {
-          var type = session.typeFor(typeKey);
-          throw LoadError.create({
-            type: type,
-            id: id,
-            errors: get(payload, 'errors')
-          });
-        });
-        return this._mergeAndContextualizePromise(promise, session, context, opts);
+      load: function(model, opts, session) {
+        return this._mergeAndContextualizePromise(this._load(model, opts), session, model, opts);
       },
       
-      _load: function(typeKey, id, opts) {
-        var context = {typeKey: typeKey, id: id};
-        opts = Ember.merge({
-          type: 'GET'
-        }, opts || {});
-        return this._remoteCall(context, null, null, opts);
-      },
-
-      refresh: function(model, opts, session) {
-        return this._mergeAndContextualizePromise(this._refresh(model, opts), session, model, opts);
-      },
-      
-      _refresh: function(model, opts) {
+      _load: function(model, opts) {
         opts = Ember.merge({
           type: 'GET'
         }, opts || {});
@@ -5406,9 +5323,6 @@ define("epf/rest/rest_adapter",
         The logic inside this hook is for this purpose.
       */
       willMergeModel: function(model) {
-        if(!get(model, 'isLoaded')) {
-          return;
-        }
         this._embeddedManager.updateParents(model);
       },
 
@@ -5500,7 +5414,7 @@ define("epf/rest/rest_adapter",
           for(var i = 0; i < children.length; i++) {
             var child = children[i];
 
-            child.eachRelationship(function(name, relationship) {
+            child.eachLoadedRelationship(function(name, relationship) {
               // TODO: handle hasMany's for non-relational databases...
               if(relationship.kind === 'belongsTo') {
                 var value = get(child, name);
@@ -5511,7 +5425,7 @@ define("epf/rest/rest_adapter",
                     return;
                   }
 
-                  if(inverse.kind === 'hasMany') {
+                  if(inverse.kind === 'hasMany' && parent.isPropertyLoaded(inverse.name)) {
                     var parentCollection = get(parent, inverse.name);
                     if(child.get('isDeleted')) {
                       parentCollection.removeObject(child);
@@ -5590,9 +5504,7 @@ define("epf/rest/rest_adapter",
           // ensure embedded model graphs are part of the set
           this.eachEmbeddedRelative(model, function(embeddedModel) {
             // updated adapter level tracking of embedded parents
-            if(get(embeddedModel, 'isLoaded')) {
-              this._embeddedManager.updateParents(embeddedModel);
-            }
+            this._embeddedManager.updateParents(embeddedModel);
 
             if (result.contains(embeddedModel)) { return; }
             var copy = embeddedModel.copy();
@@ -5622,8 +5534,6 @@ define("epf/rest/rest_adapter",
 
         visited.add(model);
         callback.call(binding, model);
-        
-        if(!get(model, 'isLoaded')) return;
 
         this.serializerForModel(model).eachEmbeddedRecord(model, function(embeddedRecord, embeddedType) {
           this.eachEmbeddedRelative(embeddedRecord, callback, binding, visited);
@@ -6014,11 +5924,8 @@ define("epf/rest/serializers/payload",
             if(typeof context === 'string' && typeKey === context) {
               // context is a typeKey (e.g. for a query)
               result.context.push(model);
-            } else if(get(context, 'isModel')) {
+            } else if(get(context, 'isModel') && context.isEqual(model)) {
               // context is a model
-              result.context = model;
-            } else if(get(model, 'id') === context.id && get(model, 'typeKey') === context.typeKey) {
-              // context is a type/id hash (e.g. for a load)
               result.context = model;
             }
           }
@@ -6094,13 +6001,12 @@ define("epf/serializers/base",
     });
   });
 define("epf/serializers/belongs_to",
-  ["../model/proxies","./base","exports"],
-  function(__dependency1__, __dependency2__, __exports__) {
+  ["./base","exports"],
+  function(__dependency1__, __exports__) {
     "use strict";
     var get = Ember.get, set = Ember.set;
 
-    var LazyModel = __dependency1__.LazyModel;
-    var Serializer = __dependency2__["default"];
+    var Serializer = __dependency1__["default"];
 
     __exports__["default"] = Serializer.extend({
 
@@ -6112,20 +6018,19 @@ define("epf/serializers/belongs_to",
         if(!serialized) {
           return null;
         }
-        if(opts.embedded) {
-          return this.deserializeEmbedded(serialized, opts);
+        if(!opts.embedded) {
+          var idSerializer = this.serializerFor('id');
+          serialized = {
+            id: idSerializer.deserialize(serialized)
+          };
+          opts.reifyClientId = false;
         }
-        var idSerializer = this.serializerFor('id');
-        var res = LazyModel.create({
-          id: idSerializer.deserialize(serialized),
-          type: this.typeFor(opts.typeKey)
-        });
-        return res;
+        return this.deserializeModel(serialized, opts);
       },
 
-      deserializeEmbedded: function(serialized, opts) {
+      deserializeModel: function(serialized, opts) {
         var serializer = this.serializerFor(opts.typeKey);
-        return serializer.deserialize(serialized);
+        return serializer.deserialize(serialized, opts);
       },
 
       serialize: function(model, opts) {
@@ -6133,13 +6038,13 @@ define("epf/serializers/belongs_to",
           return null;
         }
         if(opts.embedded) {
-          return this.serializeEmbedded(model, opts);
+          return this.serializeModel(model, opts);
         }
         var idSerializer = this.serializerFor('id');
         return idSerializer.serialize(get(model, 'id'));
       },
 
-      serializeEmbedded: function(model, opts) {
+      serializeModel: function(model, opts) {
         var serializer = this.serializerFor(opts.typeKey);
         return serializer.serialize(model);
       }
@@ -6229,13 +6134,12 @@ define("epf/serializers/date",
     });
   });
 define("epf/serializers/has_many",
-  ["../model/proxies","./base","exports"],
-  function(__dependency1__, __dependency2__, __exports__) {
+  ["./base","exports"],
+  function(__dependency1__, __exports__) {
     "use strict";
     var empty = Ember.isEmpty;
 
-    var LazyModel = __dependency1__.LazyModel;
-    var Serializer = __dependency2__["default"];
+    var Serializer = __dependency1__["default"];
 
     __exports__["default"] = Serializer.extend({
 
@@ -6245,35 +6149,33 @@ define("epf/serializers/has_many",
 
       deserialize: function(serialized, opts) {
         if(!serialized) return [];
-        if(opts.embedded) {
-          return this.deserializeEmbedded(serialized, opts);
+        if(!opts.embedded) {
+          var idSerializer = this.serializerFor('id');
+          serialized = serialized.map(function(id) {
+            return {
+              id: id
+            };
+          }, this);
+          opts.reifyClientId = false;
         }
-        var idSerializer = this.serializerFor('id'),
-            type = this.typeFor(opts.typeKey);
-        return serialized.map(function(id) {
-          var res = LazyModel.create({
-            id: idSerializer.deserialize(id),
-            type: type
-          });
-          return res;
-        }, this);
+        return this.deserializeModels(serialized, opts);
       },
 
-      deserializeEmbedded: function(serialized, opts) {
+      deserializeModels: function(serialized, opts) {
         var serializer = this.serializerFor(opts.typeKey);
         return serialized.map(function(hash) {
-          return serializer.deserialize(hash);
+          return serializer.deserialize(hash, opts);
         });
       },
 
       serialize: function(models, opts) {
         if(opts.embedded) {
-          return this.serializeEmbedded(models, opts);
+          return this.serializeModels(models, opts);
         }
         return undefined;
       },
 
-      serializeEmbedded: function(models, opts) {
+      serializeModels: function(models, opts) {
         var serializer = this.serializerFor(opts.typeKey);
         return models.map(function(model) {
           return serializer.serialize(model);
@@ -6414,7 +6316,6 @@ define("epf/serializers/model",
 
       serialize: function(model) {
         var serialized = {};
-        Ember.assert('Cannot serialize an unloaded model.', get(model, 'isLoaded'));
 
         this.addMeta(serialized, model);
         this.addAttributes(serialized, model);
@@ -6431,7 +6332,7 @@ define("epf/serializers/model",
       },
 
       addAttributes: function(serialized, model) {
-        model.eachAttribute(function(name, attribute) {
+        model.eachLoadedAttribute(function(name, attribute) {
           // do not include transient properties
           if(attribute.options.transient) return;
           this.addProperty(serialized, model, name, attribute.type);
@@ -6439,7 +6340,7 @@ define("epf/serializers/model",
       },
 
       addRelationships: function(serialized, model) {
-        model.eachRelationship(function(name, relationship) {
+        model.eachLoadedRelationship(function(name, relationship) {
           var config = this.configFor(name),
               opts = {typeKey: relationship.typeKey, embedded: config.embedded},
               // we dasherize the kind for lookups for consistency
@@ -6464,23 +6365,25 @@ define("epf/serializers/model",
         }
       },
 
-      deserialize: function(hash) {
+      deserialize: function(hash, opts) {
         var model = this.createModel();
 
-        this.extractMeta(model, hash);
+        this.extractMeta(model, hash, opts);
         this.extractAttributes(model, hash);
         this.extractRelationships(model, hash);
 
         return model;
       },
 
-      extractMeta: function(model, hash) {
+      extractMeta: function(model, hash, opts) {
         this.extractProperty(model, hash, 'id', 'id');
         this.extractProperty(model, hash, 'clientId', 'string');
         this.extractProperty(model, hash, 'rev', 'revision');
         this.extractProperty(model, hash, 'clientRev', 'revision');
         this.extractProperty(model, hash, 'errors', 'errors');
-        this.idManager.reifyClientId(model);
+        if(!opts || opts.reifyClientId !== false) {
+          this.idManager.reifyClientId(model);
+        }
       },
 
       extractAttributes: function(model, hash) {
@@ -6503,13 +6406,16 @@ define("epf/serializers/model",
         var key = this.keyFor(name, type, opts),
             value = hash[key],
             serializer;
+        if(typeof value === 'undefined') {
+          return;
+        }
         if(type) {
           serializer = this.serializerFor(type);
         }
         if(serializer) {
           value = serializer.deserialize(value, opts);
         }
-        if(value !== undefined) {
+        if(typeof value !== 'undefined') {
           set(model, name, value);
         }
       },
@@ -6621,15 +6527,50 @@ define("epf/serializers/string",
 
     });
   });
+define("epf/session/cache",
+  ["exports"],
+  function(__exports__) {
+    "use strict";
+    var get = Ember.get, set = Ember.set;
+
+    /**
+      Maintains a cache of model-related promises
+    */
+    __exports__["default"] = Ember.Object.extend({
+
+      _data: null,
+
+      init: function() {
+        this._data = {};
+      },
+
+      addModel: function(model) {
+        // for now we only add the model if some attributes are loaded,
+        // eventually this will be on a per-attribute basis
+        if(model.anyPropertiesLoaded()) {
+          this.addPromise(model, Ember.RSVP.resolve());
+        }
+      },
+
+      addPromise: function(model, promise) {
+        this._data[get(model, 'clientId')] = promise;
+      },
+
+      getPromise: function(model) {
+        Ember.assert("Model does not have a client id", get(model, 'clientId'));
+        return this._data[get(model, 'clientId')];
+      }
+
+    });
+  });
 define("epf/session/child_session",
-  ["./session","../model/proxies","exports"],
-  function(__dependency1__, __dependency2__, __exports__) {
+  ["./session","exports"],
+  function(__dependency1__, __exports__) {
     "use strict";
     var get = Ember.get, set = Ember.set;
 
     var Session = __dependency1__["default"];
 
-    var resolveModel = __dependency2__.resolveModel;
 
     /**
       Child sessions are useful to keep changes isolated
@@ -6642,35 +6583,40 @@ define("epf/session/child_session",
         return this._super(parentModel, visited);
       },
 
-      fetch: function(model) {
+      /**
+        @private
+
+        Child sessions dynamically copy down data from parent.
+      */
+      getModel: function(model) {
         var res = this._super(model);
         if(!res) {
-          res = get(this, 'parent').fetch(model);
+          res = get(this, 'parent').getModel(model);
           if(res) {
             res = this.adopt(res.copy());
+            // TODO: is there a better place for this?
+            this.updateCache(res);
           }
         }
         return res;
       },
 
-      load: function(type, id) {
-        type = this.typeFor(type);
-        var typeKey = get(type, 'typeKey');
-        // Always coerce to string
-        id = id+'';
+      /**
+        @private
 
-        var cached = this.getForId(typeKey, id);
-        if(cached && get(cached, 'isLoaded')) {
-          return resolveModel(cached);
+        Child sessions dynamically copy down data from parent.
+      */
+      getForClientId: function(clientId) {
+        var res = this._super(clientId);
+        if(!res) {
+          res = get(this, 'parent').getForClientId(clientId);
+          if(res) {
+            res = this.adopt(res.copy());
+            // TODO: is there a better place for this?
+            this.updateCache(res);
+          }
         }
-
-        // load and resolve immediately if the parent already has it loaded
-        var parentModel = get(this, 'parent').getForId(typeKey, id);
-        if(parentModel && get(parentModel, 'isLoaded')) {
-          return resolveModel(this.merge(parentModel));
-        }
-
-        return this._super(type, id);
+        return res;
       },
 
       /**
@@ -6774,10 +6720,9 @@ define("epf/session/inverse_manager",
       
       register: function(model) {
         var clientId = get(model, 'clientId');
-        Ember.assert("Cannot register an unloaded model", get(model, 'isLoaded'));
         var session = get(this, 'session');
         
-        model.eachRelationship(function(name, relationship) {
+        model.eachLoadedRelationship(function(name, relationship) {
           // this is a copy that we mutate
           var existingInverses = this.map.get(clientId).get(name),
               inversesToClear = existingInverses.copy();
@@ -6842,9 +6787,9 @@ define("epf/session/inverse_manager",
       },
 
       _addToInverse: function(model, inverse, inverseModel) {
-        // the model could have been registered when it was lazy
-        model = this.session.getModel(model);
-        if(!model) return;
+        model = this.session.models.getModel(model);
+        // make sure the inverse is loaded
+        if(!model || !model.isPropertyLoaded(inverse.name)) return;
         model.suspendRelationshipObservers(function() {
           if(inverse.kind === 'hasMany') {
             get(model, inverse.name).addObject(inverseModel)
@@ -6855,9 +6800,9 @@ define("epf/session/inverse_manager",
       },
       
       _removeFromInverse: function(model, inverse, inverseModel) {
-        // the model could have been registered when it was lazy
-        model = this.session.getModel(model);
-        if(!model) return;
+        model = this.session.models.getModel(model);
+        // make sure the inverse is loaded
+        if(!model || !model.isPropertyLoaded(inverse.name)) return;
         model.suspendRelationshipObservers(function() {
           if(inverse.kind === 'hasMany') {
             get(model, inverse.name).removeObject(inverseModel)
@@ -6910,16 +6855,19 @@ define("epf/session/merge",
         @param {Ember.Set} [visited] Cache used to break recursion. This is required for non-version-aware backends.
       */
       merge: function(model, visited) {
-        var adapter = get(this, 'adapter');
-        adapter.willMergeModel(model);
-        
         this.reifyClientId(model);
+
         if(!visited) visited = new Ember.Set();
 
         if(visited.contains(model)) {
           return this.getModel(model);
         }
         visited.add(model);
+
+        var adapter = get(this, 'adapter');
+        adapter.willMergeModel(model);
+
+        this.updateCache(model);
 
         var detachedChildren = [];
         // Since we re-use objects during merge if they are detached,
@@ -6997,9 +6945,9 @@ define("epf/session/merge",
             // After a successful merge we update the shadow to the
             // last known value from the server. As an optimization,
             // we only create shadows if the model has been dirtied.
-            if(shadows.contains(model) && get(model, 'isLoaded')) {
+            if(shadows.contains(model)) {
               // TODO: should remove unless client has unflushed changes
-              shadows.add(model);
+              shadows.addData(model);
             }
 
             // Once the server has seen our local changes, the original
@@ -7066,10 +7014,10 @@ define("epf/session/merge",
         // set the errors on the merged model
         // TODO: we need to do a proper merge here
         set(merged, 'errors', Ember.copy(get(model, 'errors')));
-
-        if(get(model, 'isLoaded') && !get(model, 'isNew')) {
+     
+        if(!get(model, 'isNew')) {
           // "rollback" the shadow to have what was returned by the server
-          shadows.add(model);
+          shadows.addData(model);
 
           // the shadow is now the server version, so no reason to
           // keep the original around
@@ -7082,19 +7030,6 @@ define("epf/session/merge",
       _mergeModel: function(dest, ancestor, model) {
         //Ember.assert("Cannot merge a model into it's own session", dest !== model);
 
-        if(get(model, 'isPromise')) {
-          return this._mergePromise(dest, ancestor, model);
-        }
-
-        var promise;
-
-        if(dest && get(dest, 'isPromise')) {
-          // if the destination is a promise we want to
-          // merge it's content
-          promise = dest;
-          dest = dest.content;
-        }
-
         // if the model does not exist, no "merging"
         // is required
         if(!dest) {
@@ -7105,12 +7040,6 @@ define("epf/session/merge",
           }
 
           this.adopt(dest);
-          
-          if(promise) {
-            // update the content of the promise so any lingering
-            // references will still function
-            promise.resolve(dest);
-          }
           return dest;
         }
 
@@ -7143,25 +7072,6 @@ define("epf/session/merge",
         return dest;
       },
 
-      // Delegate to the content of the promise
-      _mergePromise: function(dest, ancestor, promise) {
-        var content = get(promise, 'content');
-        if(content) {
-          return this._mergeModel(dest, ancestor, content);
-        }
-
-        // otherwise keep it lazy
-        if(!dest) {
-          if(get(promise, 'isDetached')) {
-            dest = promise;
-          } else {
-            dest = promise.lazyCopy();
-          }
-          this.adopt(dest);
-        }
-        return dest;
-      },
-
       _containsRev: function(modelA, modelB) {
         if(!get(modelA, 'rev')) return false;
         if(!get(modelB, 'rev')) return false;
@@ -7175,15 +7085,16 @@ define("epf/session/merge",
     });
   });
 define("epf/session/session",
-  ["../collections/model_array","../collections/model_set","./collection_manager","./inverse_manager","../model/model","../model/proxies","exports"],
-  function(__dependency1__, __dependency2__, __dependency3__, __dependency4__, __dependency5__, __dependency6__, __exports__) {
+  ["../collections/model_array","../collections/model_set","./collection_manager","./inverse_manager","../model/model","../model/promise","./cache","exports"],
+  function(__dependency1__, __dependency2__, __dependency3__, __dependency4__, __dependency5__, __dependency6__, __dependency7__, __exports__) {
     "use strict";
     var ModelArray = __dependency1__["default"];
     var ModelSet = __dependency2__["default"];
     var CollectionManager = __dependency3__["default"];
     var InverseManager = __dependency4__["default"];
     var Model = __dependency5__["default"];
-    var resolveModel = __dependency6__.resolveModel;
+    var ModelPromise = __dependency6__["default"];
+    var Cache = __dependency7__["default"];
 
     var get = Ember.get, set = Ember.set;
 
@@ -7200,6 +7111,7 @@ define("epf/session/session",
         this.shadows = ModelSet.create();
         this.originals = ModelSet.create();
         this.newModels = ModelSet.create();
+        this.cache = Cache.create();
       },
 
       /**
@@ -7231,14 +7143,15 @@ define("epf/session/session",
       },
 
       adopt: function(model) {
+        this.reifyClientId(model);
         Ember.assert("Models instances cannot be moved between sessions. Use `add` or `update` instead.", !get(model, 'session') || get(model, 'session') === this);
-        Ember.assert("An equivalent model already exists in the session!", !this.getModel(model) || this.getModel(model) === model);
+        Ember.assert("An equivalent model already exists in the session!", !this.models.getModel(model) || this.models.getModel(model) === model);
 
         if(get(model, 'isNew')) {
           this.newModels.add(model);
         }
         // Only loaded models are stored on the session
-        if(!get(model, 'isProxy') && !get(model, 'session')) {
+        if(!get(model, 'session')) {
           this.models.add(model);
           // Need to register with the inverse manager before being added to the
           // session. Otherwise, in a child session, the entire graph will be
@@ -7272,15 +7185,8 @@ define("epf/session/session",
       add: function(model) {
         this.reifyClientId(model);
 
-        var dest = this.fetch(model);
-        if(dest && get(dest, 'isLoaded')) return dest;
-
-        if(get(model, 'isProxy')) {
-          var content = get(model, 'content');
-          if(content) {
-            return this.add(content);
-          }
-        }
+        var dest = this.getModel(model);
+        if(dest) return dest;
         
         if(get(model, 'session') === this) return model;
 
@@ -7331,14 +7237,7 @@ define("epf/session/session",
       */
       update: function(model) {
         this.reifyClientId(model);
-        if(get(model, 'isProxy')) {
-          var content = get(model, 'content');
-          if(content) {
-            return this.update(content);
-          }
-          throw new Ember.Error("Cannot update with an unloaded model: " + model.toString());
-        }
-        var dest = this.fetch(model);
+        var dest = this.getModel(model);
 
         if(get(model, 'isNew') && !dest) {
           dest = get(model, 'type').create();
@@ -7350,7 +7249,7 @@ define("epf/session/session",
         // if the model is detached or does not exist
         // in the target session, updating is semantically
         // equivalent to adding
-        if(get(model, 'isDetached') || !dest || !get(dest, 'isLoaded')) {
+        if(get(model, 'isDetached') || !dest) {
           return this.add(model);
         }
 
@@ -7366,7 +7265,7 @@ define("epf/session/session",
         model.copyAttributes(dest);
         model.copyMeta(dest);
 
-        model.eachRelationship(function(name, relationship) {
+        model.eachLoadedRelationship(function(name, relationship) {
           if(relationship.kind === 'belongsTo') {
             var child = get(model, name);
             if(child) {
@@ -7396,18 +7295,65 @@ define("epf/session/session",
         this.inverseManager.unregister(model);
       },
 
-      load: function(type, id, opts) {
+      /**
+        Returns the model corresponding to the given typeKey and id
+        or instantiates a new model if one does not exist.
+
+        @returns {Model}
+      */
+      fetch: function(type, id) {
         type = this.typeFor(type);
         var typeKey = get(type, 'typeKey');
         // Always coerce to string
         id = id+'';
 
-        var cached = this.getForId(typeKey, id);
-        if(cached && get(cached, 'isLoaded')) {
-          return resolveModel(cached);
+        var model = this.getForId(typeKey, id);
+        // XXX: add isLoaded flag to model
+        if(!model) {
+          model = this.build(typeKey, {id: id});
+          this.adopt(model);
         }
 
-        return resolveModel(this.adapter.load(typeKey, id, opts, this), type, id, this);
+        return model;
+      },
+
+      /**
+        Loads the model corresponding to the given typeKey and id.
+
+        @returns {Promise}
+      */
+      load: function(type, id, opts) {
+        var model = this.fetch(type, id);
+        return this.loadModel(model, opts);
+      },
+
+      /**
+        Ensures data is loaded for a model.
+
+        @returns {Promise}
+      */
+      loadModel: function(model, opts) {
+        Ember.assert("Cannot load a model with an id", get(model, 'id'));
+        // TODO: this should be done on a per-attribute bases
+        var promise = this.cache.getPromise(model);
+
+        if(promise) {
+          // the cache's promise is not guaranteed to return anything
+          promise = promise.then(function() {
+            return model;
+          });
+        } else {
+          // XXX: refactor adapter api to use model
+          promise = this.adapter.load(model, opts, this);
+          this.cache.addPromise(model, promise);
+        }
+
+        promise = ModelPromise.create({
+          content: model,
+          promise: promise
+        });
+
+        return promise;
       },
 
       find: function(type, query, opts) {
@@ -7415,10 +7361,6 @@ define("epf/session/session",
           return this.query(type, query, opts);
         }
         return this.load(type, query, opts);
-      },
-
-      fetch: function(model) {
-        return this.getModel(model);
       },
 
       query: function(type, query, opts) {
@@ -7432,7 +7374,7 @@ define("epf/session/session",
 
       refresh: function(model, opts) {
         var session = this;
-        return this.adapter.refresh(model, opts, this);
+        return this.adapter.load(model, opts, this);
       },
 
       flush: function() {
@@ -7476,6 +7418,10 @@ define("epf/session/session",
 
       getForId: function(typeKey, id) {
         var clientId = this.idManager.getClientId(typeKey, id);
+        return this.getForClientId(clientId);
+      },
+
+      getForClientId: function(clientId) {
         return this.models.getForClientId(clientId);
       },
 
@@ -7581,6 +7527,15 @@ define("epf/session/session",
         // if no model exists in the `shadows` property then
         // it is safe to assume the model has not been modified
         return shadows.getModel(model) || models.getModel(model);
+      },
+
+      /**
+        @private
+
+        Updates the promise cache
+      */
+      updateCache: function(model) {
+        this.cache.addModel(model);
       },
 
       /**
@@ -7753,7 +7708,7 @@ define("epf/utils/materialize_relationships",
       models.forEach(function(model) {
 
         // TODO: does this overwrite non-lazy embedded children?
-        model.eachRelationship(function(name, relationship) {
+        model.eachLoadedRelationship(function(name, relationship) {
           if(relationship.kind === 'belongsTo') {
             var child = get(model, name);
             if(child) {
