@@ -3,7 +3,7 @@
  * @copyright Copyright 2014 Gordon L. Hempton and contributors
  * @license   Licensed under MIT license
  *            See https://raw.github.com/getoutreach/epf/master/LICENSE
- * @version   0.3.1
+ * @version   0.3.2
  */
 (function() {
 (function() {
@@ -3487,6 +3487,15 @@ define("epf/model/model",
           return true;
         }
 
+        var proto = this.constructor.proto(),
+            descs = Ember.meta(proto).descs,
+            desc = descs[key],
+            meta = desc && desc._meta;
+
+        if(meta.isRelationship && meta.kind === 'belongsTo') {
+          return typeof this['__' + key] !== 'undefined';
+        }
+
         var meta = metaFor(this),
             cache = meta.cache,
             cached = cacheGet(cache, key);
@@ -3624,7 +3633,7 @@ define("epf/namespace",
         @static
       */
       Ep = Ember.Namespace.create({
-        VERSION: '0.3.1'
+        VERSION: '0.3.2'
       });
 
       if (Ember.libraries) {
@@ -3635,8 +3644,8 @@ define("epf/namespace",
     __exports__["default"] = Ep;
   });
 define("epf/relationships/belongs_to",
-  ["../model/model","exports"],
-  function(__dependency1__, __exports__) {
+  ["../model/model","../utils/isEqual","exports"],
+  function(__dependency1__, __dependency2__, __exports__) {
     "use strict";
     var get = Ember.get, set = Ember.set,
         cacheFor = Ember.cacheFor,
@@ -3645,56 +3654,7 @@ define("epf/relationships/belongs_to",
         metaFor = Ember.meta;
 
     var Model = __dependency1__["default"];
-
-    /**
-      @private
-
-      Custom CP descriptor which updates the cache when accessed
-    */
-    function BelongsToDescriptor(func, opts) {
-      Ember.ComputedProperty.apply(this, arguments);
-    }
-
-    function inherit(o) {
-      function F() {}; // Dummy constructor
-      F.prototype = o; 
-      return new F(); 
-    }
-
-    BelongsToDescriptor.prototype = inherit(Ember.ComputedProperty.prototype);
-    BelongsToDescriptor.prototype.constructor = BelongsToDescriptor;
-
-    BelongsToDescriptor.prototype.get = function(obj, keyName) {
-      if(!get(obj, 'isDetached') && this._suspended !== obj) {
-        this.materialize(obj, keyName);
-      }
-
-      var res = Ember.ComputedProperty.prototype.get.apply(this, arguments);
-
-      return unwrap(res);
-    };
-
-    /**
-      @private
-
-      As an optimization, we store the raw model that was passed into the setter
-      of a belongsTo in the cache. When the belongsTo is accessed or watched we
-      then materialize. This is useful in places like child sessions where we only
-      want to fetch a model from the parent on-demand.
-    */
-    BelongsToDescriptor.prototype.materialize = function(obj, keyName) {
-      var meta = metaFor(obj),
-          cache = meta.cache,
-          session = get(obj, 'session'),
-          cached, existing;
-
-      if((cached = cacheGet(cache, keyName))
-        && (cached = unwrap(cached))
-        && (existing = session.add(cached))
-        && (existing !== cached)) {
-        cacheSet(cache, keyName, existing);
-      }
-    };
+    var isEqual = __dependency2__["default"];
 
     __exports__["default"] = function(typeKey, options) {
             options = options || {};
@@ -3707,57 +3667,32 @@ define("epf/relationships/belongs_to",
                 meta.type = typeKey;
       }
 
-      return new BelongsToDescriptor(function(key, value) {
+      return Ember.computed(function(key, value) {
+        var session = get(this, 'session');
+        var prop = "__" + key;
+        var oldValue = this[prop];
         if(arguments.length === 1) {
-          return undefined;
-        } else {
-          var session = get(this, 'session');
+          value = oldValue;
+        }
+        var changed = !isEqual(value, oldValue);
+        if(changed) {
+          this.belongsToWillChange(this, key);
           if(session) {
             session.modelWillBecomeDirty(this);
-            if(value) {
-              value = session.add(value);
-            }
-          } else if(value) {
-            value = BelongsToReference.create({
-              _parent: this,
-              content: value
-            });
           }
-          return value;
         }
-      }).meta(meta);
+        if(session && value) {
+          value = session.add(value);
+        }
+        if(arguments.length > 1) {
+          this[prop] = value;
+          if(changed) {
+            this.belongsToDidChange(this, key);
+          }
+        }
+        return value;
+      }).volatile().meta(meta);
     };
-
-    /**
-      @private
-
-      We need a custom wrapper around related models with a session
-      that points to the parent model's session. This is due to
-      the way belongsTo CP's are lazily materialized and how
-      Ember's internal chain watchers behave.
-    */
-    var BelongsToReference = Ember.Object.extend({
-      session: Ember.computed.alias('_parent.session'),
-      _parent: null,
-      willWatchProperty: function(key) {
-        if(get(this, 'session') && this.content.shouldTriggerLoad(key)) {
-          Ember.run.scheduleOnce('actions', this, this.load);
-        }
-      },
-      load: function() {
-        var session = get(this, 'session');
-        var args = [].splice.call(arguments,0);
-        args.unshift(this.content);
-        return session.loadModel.apply(session, args);
-      }
-    });
-
-    function unwrap(ref) {
-      if(ref instanceof BelongsToReference) {
-        return ref.content;
-      }
-      return ref;
-    }
 
     /**
       These observers observe all `belongsTo` relationships on the model. See
@@ -3777,6 +3712,9 @@ define("epf/relationships/belongs_to",
 
       /** @private */
       belongsToWillChange: Ember.beforeObserver(function(model, name) {
+        if(this._suspendedRelationships) {
+          return;
+        }
         var inverseModel = get(model, name);
         var session = get(model, 'session');
         if(session) {
@@ -3788,6 +3726,9 @@ define("epf/relationships/belongs_to",
 
       /** @private */
       belongsToDidChange: Ember.immediateObserver(function(model, name) {
+        if(this._suspendedRelationships) {
+          return;
+        }
         var inverseModel = get(model, name);
         var session = get(model, 'session');
         if(session && inverseModel) {
@@ -3838,10 +3779,10 @@ define("epf/relationships/ext",
           // the computed property.
           var meta = value.meta();
 
-          if (meta.isRelationship && meta.kind === 'belongsTo') {
-            Ember.addObserver(proto, key, null, 'belongsToDidChange');
-            Ember.addBeforeObserver(proto, key, null, 'belongsToWillChange');
-          }
+          // if (meta.isRelationship && meta.kind === 'belongsTo') {
+          //   Ember.addObserver(proto, key, null, 'belongsToDidChange');
+          //   Ember.addBeforeObserver(proto, key, null, 'belongsToWillChange');
+          // }
 
           meta.parentType = proto.constructor;
         }
@@ -3874,11 +3815,11 @@ define("epf/relationships/ext",
 
         try {
           this._suspendedRelationships = true;
-          Ember._suspendObservers(self, observers, null, 'belongsToDidChange', function() {
-            Ember._suspendBeforeObservers(self, observers, null, 'belongsToWillChange', function() {
+          // Ember._suspendObservers(self, observers, null, 'belongsToDidChange', function() {
+          //   Ember._suspendBeforeObservers(self, observers, null, 'belongsToWillChange', function() {
               callback.call(binding || self);
-            });
-          });
+          //   });
+          // });
         } finally {
           this._suspendedRelationships = false;
         }

@@ -3,7 +3,7 @@
  * @copyright Copyright 2014 Gordon L. Hempton and contributors
  * @license   Licensed under MIT license
  *            See https://raw.github.com/getoutreach/epf/master/LICENSE
- * @version   0.3.1
+ * @version   0.3.2
  */
 define("epf-test/_setup",
   [],
@@ -438,6 +438,7 @@ define("epf-test/merge_strategies/per_field",
         get$(expect(get$(post, 'body')), 'to').eq('bodyB');
         get$(get$(get$(expect(get$(post, 'createdAt')), 'to'), 'be'), 'null');
         get$(post, 'comments').addObject(session.create('comment'));
+        debugger;
         session.merge(get$(App, 'Post').create({
           id: '1',
           title: 'titleB',
@@ -875,7 +876,11 @@ define("epf-test/relationships",
       });
       context('one->many', function () {
         beforeEach(function () {
-          set$(this, 'Post', Model.extend({ title: attr('string') }));
+          set$(this, 'User', Model.extend({ name: attr('string') }));
+          set$(this, 'Post', Model.extend({
+            title: attr('string'),
+            user: belongsTo(get$(this, 'User'))
+          }));
           set$(get$(this, 'App'), 'Post', get$(this, 'Post'));
           set$(this, 'Comment', Model.extend({
             text: attr('string'),
@@ -981,9 +986,13 @@ define("epf-test/relationships",
           get$(expect(get$(get$(post, 'comments'), 'length')), 'to').eq(1);
           return get$(expect(get$(get$(get$(post, 'comments'), 'firstObject'), 'id')), 'to').eq('2');
         });
-        return it('supports watching belongsTo properties that have a detached cached value', function () {
-          var comment;
-          set$(get$(this, 'session'), 'loadModel', Ember.K);
+        it('supports watching belongsTo properties that have a detached cached value', function () {
+          var comment, deferred;
+          deferred = Ember.RSVP.defer();
+          set$(get$(this, 'session'), 'loadModel', function (model) {
+            Ember.unwatchPath(comment, 'post.title');
+            return deferred.resolve();
+          });
           comment = get$(this, 'session').adopt(get$(this, 'session').build('comment', {
             id: 2,
             post: get$(this, 'Post').create({ id: 1 })
@@ -991,7 +1000,34 @@ define("epf-test/relationships",
           Ember.run(function () {
             return Ember.watchPath(comment, 'post.title');
           });
-          return Ember.unwatchPath(comment, 'post.title');
+          return get$(deferred, 'promise');
+        });
+        return it('supports watching multiple levels of unloaded belongsTo', function () {
+          var comment, deferred, Post, User;
+          deferred = Ember.RSVP.defer();
+          Post = get$(this, 'Post');
+          User = get$(this, 'User');
+          set$(get$(this, 'session'), 'loadModel', function (model) {
+            if (model instanceof Post) {
+              model = model.copy();
+              set$(model, 'title', 'post');
+              set$(model, 'user', User.create({ id: '2' }));
+              this.merge(model);
+              return Ember.RSVP.resolve(model);
+            } else {
+              return deferred.resolve();
+            }
+          });
+          comment = get$(this, 'session').adopt(get$(this, 'session').build('comment', {
+            id: 2,
+            post: get$(this, 'Post').create({ id: 1 })
+          }));
+          Ember.run(function () {
+            return Ember.watchPath(comment, 'post.user.name');
+          });
+          return get$(deferred, 'promise').then(function () {
+            return Ember.unwatchPath(comment, 'post.user.name');
+          });
         });
       });
       context('one->one', function () {
