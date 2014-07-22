@@ -3,7 +3,7 @@
  * @copyright Copyright 2014 Gordon L. Hempton and contributors
  * @license   Licensed under MIT license
  *            See https://raw.github.com/getoutreach/epf/master/LICENSE
- * @version   0.3.2
+ * @version   0.3.3
  */
 (function() {
 (function() {
@@ -3633,7 +3633,7 @@ define("epf/namespace",
         @static
       */
       Ep = Ember.Namespace.create({
-        VERSION: '0.3.2'
+        VERSION: '0.3.3'
       });
 
       if (Ember.libraries) {
@@ -5361,9 +5361,13 @@ define("epf/rest/rest_adapter",
             child.eachLoadedRelationship(function(name, relationship) {
               // TODO: handle hasMany's for non-relational databases...
               if(relationship.kind === 'belongsTo') {
-                var value = get(child, name);
-                var inverse = child.constructor.inverseFor(name);
+                var value = get(child, name),
+                    inverse = child.constructor.inverseFor(name);
+
                 if(inverse) {
+                  if(!(parent instanceof inverse.type)) {
+                    return;
+                  }
                   // if embedded then we are certain the parent has the correct data
                   if(this.embeddedType(inverse.type, inverse.name)) {
                     return;

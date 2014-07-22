@@ -3,7 +3,7 @@
  * @copyright Copyright 2014 Gordon L. Hempton and contributors
  * @license   Licensed under MIT license
  *            See https://raw.github.com/getoutreach/epf/master/LICENSE
- * @version   0.3.2
+ * @version   0.3.3
  */
 define("epf-test/_setup",
   [],
@@ -438,7 +438,6 @@ define("epf-test/merge_strategies/per_field",
         get$(expect(get$(post, 'body')), 'to').eq('bodyB');
         get$(get$(get$(expect(get$(post, 'createdAt')), 'to'), 'be'), 'null');
         get$(post, 'comments').addObject(session.create('comment'));
-        debugger;
         session.merge(get$(App, 'Post').create({
           id: '1',
           title: 'titleB',
