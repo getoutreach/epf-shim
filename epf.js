@@ -3,7 +3,7 @@
  * @copyright Copyright 2014 Gordon L. Hempton and contributors
  * @license   Licensed under MIT license
  *            See https://raw.github.com/getoutreach/epf/master/LICENSE
- * @version   0.3.3
+ * @version   0.3.4
  */
 (function() {
 (function() {
@@ -3637,7 +3637,7 @@ define("epf/namespace",
         @static
       */
       Ep = Ember.Namespace.create({
-        VERSION: '0.3.3'
+        VERSION: '0.3.4'
       });
 
       if (Ember.libraries) {
@@ -4263,7 +4263,7 @@ define("epf/relationships/has_many",
         meta.type = typeKey;
       }
 
-      return Ember.computed(function(key, value) {
+      return Ember.computed(function(key, value, oldValue) {
         var content;
         if(arguments.length === 1) {
           if(!get(this, 'isNew')) {
@@ -4273,11 +4273,18 @@ define("epf/relationships/has_many",
         } else {
           content = value;
         }
-        return HasManyArray.create({
-          owner: this,
-          name: key,
-          content: content
-        });
+        // reuse the existing array
+        // must check if an array here since Ember passes in UNDEFINED() instead of undefined
+        if(oldValue && (oldValue instanceof Array)) {
+          set(oldValue, 'content', content);
+          return oldValue;
+        } else {
+          return HasManyArray.create({
+            owner: this,
+            name: key,
+            content: content
+          });
+        }
       }).property().meta(meta);
     };
 

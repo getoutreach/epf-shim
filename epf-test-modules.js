@@ -3,7 +3,7 @@
  * @copyright Copyright 2014 Gordon L. Hempton and contributors
  * @license   Licensed under MIT license
  *            See https://raw.github.com/getoutreach/epf/master/LICENSE
- * @version   0.3.3
+ * @version   0.3.4
  */
 define("epf-test/_setup",
   [],
@@ -5354,7 +5354,7 @@ define("epf-test/session/session",
           get$(expect(get$(get$(post, 'comments'), 'firstObject')), 'to').eq(comment);
           return get$(get$(get$(expect(get$(post, 'isDirty')), 'to'), 'be'), 'false');
         });
-        return it('handles merging detached model with lazy hasMany reference', function () {
+        it('handles merging detached model with lazy hasMany reference', function () {
           var comment, post;
           comment = session.merge(get$(this, 'Comment').create({
             id: '1',
@@ -5367,6 +5367,22 @@ define("epf-test/session/session",
           }));
           get$(expect(get$(comment, 'post')), 'to').eq(post);
           return get$(get$(get$(expect(get$(comment, 'isDirty')), 'to'), 'be'), 'false');
+        });
+        return it('reuses existing hasMany arrays', function () {
+          var comments, post;
+          post = session.merge(get$(this, 'Post').create({
+            id: '2',
+            comments: []
+          }));
+          comments = get$(post, 'comments');
+          session.merge(get$(this, 'Post').create({
+            id: '2',
+            comments: [get$(this, 'Comment').create({
+                id: '1',
+                post: get$(this, 'Post').create({ id: '2' })
+              })]
+          }));
+          return get$(expect(get$(comments, 'length')), 'to').eq(1);
         });
       });
       describe('.markClean', function () {
@@ -5404,7 +5420,6 @@ define("epf-test/session/session",
           return get$(get$(get$(expect(get$(post, 'isDirty')), 'to'), 'be'), 'true');
         });
       });
-      describe;
       describe('.isDirty', function () {
         it('is true when models are dirty', function () {
           var post;
