@@ -3,7 +3,7 @@
  * @copyright Copyright 2014 Gordon L. Hempton and contributors
  * @license   Licensed under MIT license
  *            See https://raw.github.com/getoutreach/epf/master/LICENSE
- * @version   0.3.4
+ * @version   0.3.5
  */
 define("epf",
   ["./ext/date","./namespace","./adapter","./id_manager","./initializers","./setup_container","./collections/model_array","./collections/model_set","./local/local_adapter","./merge_strategies/base","./merge_strategies/per_field","./model/attribute","./model/model","./model/diff","./model/errors","./model/promise","./relationships/belongs_to","./relationships/ext","./relationships/has_many","./rest/serializers/errors","./rest/serializers/payload","./rest/embedded_helpers_mixin","./rest/embedded_manager","./rest/operation","./rest/operation_graph","./rest/payload","./rest/rest_adapter","./rest/rest_errors","./active_model/active_model_adapter","./active_model/serializers/model","./serializers/base","./serializers/belongs_to","./serializers/boolean","./serializers/date","./serializers/has_many","./serializers/id","./serializers/number","./serializers/model","./serializers/revision","./serializers/string","./session/child_session","./session/collection_manager","./session/inverse_manager","./session/merge","./session/session","./utils/isEqual","./debug/debug_adapter","exports"],
@@ -1947,7 +1947,7 @@ define("epf/namespace",
         @static
       */
       Ep = Ember.Namespace.create({
-        VERSION: '0.3.4'
+        VERSION: '0.3.5'
       });
 
       if (Ember.libraries) {
@@ -2585,7 +2585,7 @@ define("epf/relationships/has_many",
         }
         // reuse the existing array
         // must check if an array here since Ember passes in UNDEFINED() instead of undefined
-        if(oldValue && (oldValue instanceof Array)) {
+        if(oldValue && (oldValue instanceof HasManyArray)) {
           set(oldValue, 'content', content);
           return oldValue;
         } else {
